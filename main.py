@@ -36,4 +36,5 @@ if __name__ == '__main__':
        if  itr % 500 == 0 and not itr == 0:
           torch.save(model.state_dict(), './ckpt/' + args.model_name + '.pkl')
           test(itr, dataset, args, model, logger, device)
+            
     
