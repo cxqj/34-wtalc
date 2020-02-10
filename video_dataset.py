@@ -5,26 +5,26 @@ import time
 
 class Dataset():
     def __init__(self, args):
-        self.dataset_name = args.dataset_name
-        self.num_class = args.num_class
+        self.dataset_name = args.dataset_name  # Thumos14reduced
+        self.num_class = args.num_class 
         self.feature_size = args.feature_size
         self.path_to_features = '%s-%s-JOINTFeatures.npy' %(args.dataset_name, args.feature_type)
         self.path_to_annotations = self.dataset_name + '-Annotations/'
         self.features = np.load(self.path_to_features, encoding='bytes')
-        self.segments = np.load(self.path_to_annotations + 'segments.npy')
-        self.labels = np.load(self.path_to_annotations + 'labels_all.npy')     # Specific to Thumos14
-        self.classlist = np.load(self.path_to_annotations + 'classlist.npy')
-        self.subset = np.load(self.path_to_annotations + 'subset.npy')
+        self.segments = np.load(self.path_to_annotations + 'segments.npy') # [[67.5,75.9],[85.9,90.6],[139.3,148.2]]  412
+        self.labels = np.load(self.path_to_annotations + 'labels_all.npy')  # ['HighJump'],['HammerThrow'],... 每个视频包含的动作类别   # Specific to Thumos14
+        self.classlist = np.load(self.path_to_annotations + 'classlist.npy')  # 20个动作类别
+        self.subset = np.load(self.path_to_annotations + 'subset.npy')  #validation/test  每个视频所属的subset
         self.batch_size = args.batch_size
         self.t_max = args.max_seqlen
-        self.trainidx = []
-        self.testidx = []
+        self.trainidx = []   # 训练视频idx
+        self.testidx = []    # 测试视频idx
         self.classwiseidx = []
         self.currenttestidx = 0
-        self.labels_multihot = [utils.strlist2multihot(labs,self.classlist) for labs in self.labels]
+        self.labels_multihot = [utils.strlist2multihot(labs,self.classlist) for labs in self.labels]  # one hot形式的视频动作类别标注
 
-        self.train_test_idx()
-        self.classwise_feature_mapping()
+        self.train_test_idx()  # 将不同subset的视频添加到对应列表
+        self.classwise_feature_mapping()  # [[65,130,131,132,133,134,135,136,137,138,137],[],[]]  获取属于某个类的视频idx
 
 
     def train_test_idx(self):
@@ -48,12 +48,12 @@ class Dataset():
         if is_training==True:
             features = []
             labels = []
-            idx = []
+            idx = []  # [10,16,111,115,117,112] 3个类别*每个类别2个视频
 
             # Load similar pairs
-            rand_classid = np.random.choice(len(self.classwiseidx), size=n_similar)
+            rand_classid = np.random.choice(len(self.classwiseidx), size=n_similar)  # 随机选择3个类别id
             for rid in rand_classid:
-                rand_sampleid = np.random.choice(len(self.classwiseidx[rid]), size=2)
+                rand_sampleid = np.random.choice(len(self.classwiseidx[rid]), size=2)  # 从某个类别中再随机选择一对视频
                 idx.append(self.classwiseidx[rid][rand_sampleid[0]])
                 idx.append(self.classwiseidx[rid][rand_sampleid[1]])
 
