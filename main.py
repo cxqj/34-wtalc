@@ -20,7 +20,7 @@ if __name__ == '__main__':
     dataset = Dataset(args)
     if not os.path.exists('./ckpt/'):
        os.makedirs('./ckpt/')
-    if not os.path.exists('./logs/' + args.model_name):
+    if not os.path.exists('./logs/' + args.model_name):  # model_name : weakloc
        os.makedirs('./logs/' + args.model_name)
     logger = Logger('./logs/' + args.model_name)
     
