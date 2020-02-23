@@ -26,9 +26,9 @@ def test(itr, dataset, args, model, logger, device):
         features = torch.from_numpy(features).float().to(device)
 
         with torch.no_grad():
-           _, element_logits = model(Variable(features), is_training=False)
+           _, element_logits = model(Variable(features), is_training=False) # (1,T,20)
         tmp = F.softmax(torch.mean(torch.topk(element_logits, k=int(np.ceil(len(features)/8)), dim=0)[0], dim=0), dim=0).cpu().data.numpy()
-        element_logits = element_logits.cpu().data.numpy()
+        element_logits = element_logits.cpu().data.numpy() # (1,T,20)
 
         instance_logits_stack.append(tmp)
         element_logits_stack.append(element_logits)
@@ -45,7 +45,7 @@ def test(itr, dataset, args, model, logger, device):
             if test_set[i]['background_video'] == 'YES':
                 labels_stack[i,:] = np.zeros_like(labels_stack[i,:])
 
-    cmap = cmAP(instance_logits_stack, labels_stack)
+    cmap = cmAP(instance_logits_stack, labels_stack) # (212,20), (212,20)
     print('Classification map %f' %cmap)
     print('Detection map @ %f = %f' %(iou[0], dmap[0]))
     print('Detection map @ %f = %f' %(iou[1], dmap[1]))
