@@ -35,7 +35,7 @@ def CASL(x, element_logits, seq_len, n_similar, labels, device):
    
     sim_loss = 0.
     n_tmp = 0.
-    for i in range(0, n_similar*2, 2):
+    for i in range(0, n_similar*2, 2):  # 只计算成对的相似视频的Loss
         atn1 = F.softmax(element_logits[i][:seq_len[i]], dim=0)  #(750,20)
         atn2 = F.softmax(element_logits[i+1][:seq_len[i+1]], dim=0)  #(54,20)
 
