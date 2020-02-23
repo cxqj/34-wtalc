@@ -13,7 +13,7 @@ def smooth(v):
    #if len(v) <= 3:
    #   return v
    #return savgol_filter(v, l, 1) #savgol_filter(v, l, 1) #0.5*(np.concatenate([v[1:],v[-1:]],axis=0) + v)
-
+# 过滤掉和ambilist有交集的预测结果  # segment_predict: (5619,4) videonames:(212) factor:1.5625
 def filter_segments(segment_predict, videonames, ambilist, factor):
    ind = np.zeros(np.shape(segment_predict)[0])
    for i in range(np.shape(segment_predict)[0]):
@@ -29,7 +29,7 @@ def filter_segments(segment_predict, videonames, ambilist, factor):
    return np.array(s)
 
 def getLocMAP(predictions, th, annotation_path, args):
-
+   # prediction为列表，其中每一个都是(T,C)
    gtsegments = np.load(annotation_path + '/segments.npy')
    gtlabels = np.load(annotation_path + '/labels.npy')
    gtlabels = np.load(annotation_path + '/labels.npy')
@@ -46,7 +46,7 @@ def getLocMAP(predictions, th, annotation_path, args):
    ambilist = list(open(ambilist,'r'))
    ambilist = [a.strip('\n').split(' ') for a in ambilist]
 
-   # keep training gtlabels for plotting
+   # keep training gtlabels for plotting,[['HighJump','HighJump','HighJump','HighJump',..],[],...]
    gtltr = []
    for i,s in enumerate(subset):
       if subset[i]=='validation' and len(gtsegments[i]):
@@ -81,24 +81,24 @@ def getLocMAP(predictions, th, annotation_path, args):
    predictions = pred
 
    # which categories have temporal labels ?
-   templabelcategories = sorted(list(set([l for gtl in gtlabels for l in gtl])))
+   templabelcategories = sorted(list(set([l for gtl in gtlabels for l in gtl]))) # ['HighJump',....'Diving']
 
    # the number index for those categories.
    templabelidx = []
    for t in templabelcategories:
-      templabelidx.append(str2ind(t,classlist))
+      templabelidx.append(str2ind(t,classlist))  # [0,1,2,.....,19]
              
 
    # process the predictions such that classes having greater than a certain threshold are detected only
-   predictions_mod = []
-   c_score = []
-   for p in predictions:
+   predictions_mod = [] # 212xTx20
+   c_score = []  # 212x20
+   for p in predictions: # p:(T,C)
       pp = - p; [pp[:,i].sort() for i in range(np.shape(pp)[1])]; pp=-pp
-      c_s = np.mean(pp[:int(np.shape(pp)[0]/8),:],axis=0)
-      ind = c_s > 0.0
+      c_s = np.mean(pp[:int(np.shape(pp)[0]/8),:],axis=0)  # [0.5031,0.5412,...0.2708]
+      ind = c_s > 0.0  # [True,True,....True]
       c_score.append(c_s)
       new_pred = np.zeros((np.shape(p)[0],np.shape(p)[1]), dtype='float32')
-      predictions_mod.append(p*ind)
+      predictions_mod.append(p*ind)  # 保留那些得分大于0的类别得分
    predictions = predictions_mod
 
    detection_results = []
@@ -107,14 +107,14 @@ def getLocMAP(predictions, th, annotation_path, args):
       detection_results[i].append(vn)
 
    ap = []
-   for c in templabelidx:
+   for c in templabelidx: # [0,1,2,3....19]
       segment_predict = []
       # Get list of all predictions for class c
       for i in range(len(predictions)):
-         tmp = smooth(predictions[i][:,c])
-         threshold = np.max(tmp) - (np.max(tmp) - np.min(tmp))*0.5
-         vid_pred = np.concatenate([np.zeros(1),(tmp>threshold).astype('float32'),np.zeros(1)], axis=0)
-         vid_pred_diff = [vid_pred[idt]-vid_pred[idt-1] for idt in range(1,len(vid_pred))]
+         tmp = smooth(predictions[i][:,c])  # (T,1)，处理每一个类别对应的时间轴
+         threshold = np.max(tmp) - (np.max(tmp) - np.min(tmp))*0.5 # 设定得分选取阈值
+         vid_pred = np.concatenate([np.zeros(1),(tmp>threshold).astype('float32'),np.zeros(1)], axis=0) # (1,T),[0,0,1,1,1,0,.....0]
+         vid_pred_diff = [vid_pred[idt]-vid_pred[idt-1] for idt in range(1,len(vid_pred))] # (1,T-1) [0,1,0,0,-1,....]
          s = [idk for idk,item in enumerate(vid_pred_diff) if item==1]
          e = [idk for idk,item in enumerate(vid_pred_diff) if item==-1]
          for j in range(len(s)):
@@ -122,23 +122,23 @@ def getLocMAP(predictions, th, annotation_path, args):
             if e[j]-s[j]>=2:               
                segment_predict.append([i,s[j],e[j],np.max(tmp[s[j]:e[j]])+0.7*c_score[i][c]])
                detection_results[i].append([classlist[c], s[j], e[j], np.max(tmp[s[j]:e[j]])+0.7*c_score[i][c]])
-      segment_predict = np.array(segment_predict)
-      segment_predict = filter_segments(segment_predict, videoname, ambilist, factor)
+      segment_predict = np.array(segment_predict)   #(5378,4)
+      segment_predict = filter_segments(segment_predict, videoname, ambilist, factor)   #(5312,4)
    
       # Sort the list of predictions for class c based on score
       if len(segment_predict) == 0:
          return 0
-      segment_predict = segment_predict[np.argsort(-segment_predict[:,3])]
+      segment_predict = segment_predict[np.argsort(-segment_predict[:,3])]   #按得分从高到底排序
 
-      # Create gt list 
+      # Create gt list ，获取属于该类别的所有gt segments
       segment_gt = [[i, gtsegments[i][j][0], gtsegments[i][j][1]] for i in range(len(gtsegments)) for j in range(len(gtsegments[i])) if str2ind(gtlabels[i][j],classlist)==c]
       gtpos = len(segment_gt)
 
       # Compare predictions and gt
       tp, fp = [], []
-      for i in range(len(segment_predict)):
+      for i in range(len(segment_predict)):  # (5312,4) [vid_idx,start,end,score]
          flag = 0.
-         for j in range(len(segment_gt)):
+         for j in range(len(segment_gt)):  # (41,3) [vid_idx,start,end]
             if segment_predict[i][0]==segment_gt[j][0]:
                gt = range(int(round(segment_gt[j][1]*factor)), int(round(segment_gt[j][2]*factor)))
                p = range(int(segment_predict[i][1]),int(segment_predict[i][2]))
