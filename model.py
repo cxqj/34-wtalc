@@ -6,7 +6,7 @@ import torch.nn.init as torch_init
 torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
 def weights_init(m):
-    classname = m.__class__.__name__
+    classname = m.__class__.__name__  # 实例调用__class__属性时会指向该实例对应的类,然后可以再去调用其它类属性，类属性由类调用
     if classname.find('Conv') != -1 or classname.find('Linear') != -1:
         torch_init.xavier_uniform_(m.weight)
         m.bias.data.fill_(0)
